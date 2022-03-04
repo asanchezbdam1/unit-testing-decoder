@@ -28,61 +28,58 @@ namespace CryptoLib
                 Indent = false,
                 NewLineHandling = NewLineHandling.None
             };
-            using (var stringWriter = new Utf8StringWriter())
+            using (var sw = new Utf8StringWriter())
             {
-                using (var xmlWriter = XmlWriter.Create(stringWriter, settings))
+                using (var xmlw = XmlWriter.Create(sw, settings))
                 {
-                    serializer.Serialize(xmlWriter, pars);
+                    serializer.Serialize(xmlw, pars);
                 }
-                return stringWriter.ToString();
+                return sw.ToString();
             }
         }
         private static RSAParameters RsaParsFromXml(string data)
         {
             XmlSerializer xml = new XmlSerializer(typeof(RSAParameters));
-            object result;
+            object res;
             using (TextReader reader = new StringReader(data))
             {
-                result = xml.Deserialize(reader);
+                res = xml.Deserialize(reader);
             }
-            return (RSAParameters)result;
+            return (RSAParameters)res;
         }
 
         public static string RsaEncrypt(string text, string pubParsXml)
         {
-            var publicParameters = RsaParsFromXml(pubParsXml);
+            var pubPars = RsaParsFromXml(pubParsXml);
             byte[] data = Encoding.Default.GetBytes(text);
-            using (RSACryptoServiceProvider tester = new RSACryptoServiceProvider())
+            using (RSACryptoServiceProvider cservprov = new RSACryptoServiceProvider())
             {
-                tester.ImportParameters(publicParameters);
-                byte[] encrypted = tester.Encrypt(data, false);
-                string base64 = Convert.ToBase64String(encrypted, 0, encrypted.Length);
-                return base64;
+                cservprov.ImportParameters(pubPars);
+                byte[] enc = cservprov.Encrypt(data, false);
+                return Convert.ToBase64String(enc, 0, enc.Length);
             }
         }
 
         public static string RsaDecrypt(string code, RSACryptoServiceProvider rsa)
         {
-            byte[] encrypted = System.Convert.FromBase64String(code);
-            byte[] decrypted = rsa.Decrypt(encrypted, false);
-            string text = Encoding.UTF8.GetString(decrypted);
-            return text;
+            byte[] enc = Convert.FromBase64String(code);
+            byte[] dec = rsa.Decrypt(enc, false);
+            return Encoding.UTF8.GetString(dec);
         }
         public static string SignedData(string text, RSACryptoServiceProvider rsa)
         {
             byte[] data = Encoding.Default.GetBytes(text);
             byte[] xdata = rsa.SignData(data, new SHA1CryptoServiceProvider());
-            string base64 = Convert.ToBase64String(xdata, 0, xdata.Length);
-            return base64;
+            return Convert.ToBase64String(xdata, 0, xdata.Length);
         }
         public static bool VerifyData(string text, string signedText, string pubParsXml)
         {
-            var publicParameters = RsaParsFromXml(pubParsXml);
+            byte[] signed = Convert.FromBase64String(signedText);
             byte[] data = Encoding.Default.GetBytes(text);
-            byte[] signedData = Convert.FromBase64String(signedText);
-            RSACryptoServiceProvider tester = new RSACryptoServiceProvider();
-            tester.ImportParameters(publicParameters);
-            return tester.VerifyData(data, new SHA1CryptoServiceProvider(), signedData);
+            RSACryptoServiceProvider cservprov = new RSACryptoServiceProvider();
+            var pubParams = RsaParsFromXml(pubParsXml);
+            cservprov.ImportParameters(pubParams);
+            return cservprov.VerifyData(data, new SHA1CryptoServiceProvider(), signed);
         }
 
 
